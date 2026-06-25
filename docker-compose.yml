@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    container_name: cashflow-dds-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./staticfiles:/app/staticfiles

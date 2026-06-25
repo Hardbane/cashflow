@@ -1,0 +1,128 @@
+{% extends 'ledger/base.html' %}
+{% block title %}{% if object %}Редактирование записи{% else %}Создание записи{% endif %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h1 class="h3 mb-1">{% if object %}Редактировать запись ДДС{% else %}Создать запись ДДС{% endif %}</h1>
+                <p class="text-muted mb-0">Категории зависят от типа, подкатегории — от категории.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="{% url 'ledger:record_list' %}">Назад</a>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <form method="post" novalidate id="record-form"
+                      data-selected-category="{{ form.category.value|default:'' }}"
+                      data-selected-subcategory="{{ form.subcategory.value|default:'' }}">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="{{ form.record_date.id_for_label }}">{{ form.record_date.label }}</label>
+                            {{ form.record_date }}
+                            {% for error in form.record_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                            {{ form.status }}
+                            {% for error in form.status.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="{{ form.type.id_for_label }}">{{ form.type.label }}</label>
+                            {{ form.type }}
+                            {% for error in form.type.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+                            {{ form.category }}
+                            {% for error in form.category.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label required" for="{{ form.subcategory.id_for_label }}">{{ form.subcategory.label }}</label>
+                            {{ form.subcategory }}
+                            {% for error in form.subcategory.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label required" for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+                            {{ form.amount }}
+                            {% for error in form.amount.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+                            {{ form.comment }}
+                            {% for error in form.comment.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 mt-4">
+                        <button class="btn btn-primary" type="submit">Сохранить</button>
+                        <a class="btn btn-outline-secondary" href="{% url 'ledger:record_list' %}">Отмена</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const form = document.getElementById('record-form');
+    const typeSelect = document.getElementById('id_type');
+    const categorySelect = document.getElementById('id_category');
+    const subcategorySelect = document.getElementById('id_subcategory');
+    if (!form || !typeSelect || !categorySelect || !subcategorySelect) return;
+
+    const selectedCategory = form.dataset.selectedCategory;
+    const selectedSubcategory = form.dataset.selectedSubcategory;
+
+    function resetSelect(select, placeholder) {
+        select.innerHTML = '';
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = placeholder;
+        select.appendChild(emptyOption);
+    }
+
+    function fillSelect(select, items, selectedValue) {
+        items.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+            if (String(item.id) === String(selectedValue)) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+
+    async function loadCategories(selectedValue = '') {
+        resetSelect(categorySelect, 'Выберите категорию');
+        resetSelect(subcategorySelect, 'Сначала выберите категорию');
+        if (!typeSelect.value) return;
+        const response = await fetch(`/ajax/categories/?type_id=${typeSelect.value}`);
+        const data = await response.json();
+        fillSelect(categorySelect, data.results, selectedValue);
+        if (categorySelect.value) await loadSubcategories(selectedSubcategory);
+    }
+
+    async function loadSubcategories(selectedValue = '') {
+        resetSelect(subcategorySelect, 'Выберите подкатегорию');
+        if (!categorySelect.value) return;
+        const response = await fetch(`/ajax/subcategories/?category_id=${categorySelect.value}`);
+        const data = await response.json();
+        fillSelect(subcategorySelect, data.results, selectedValue);
+    }
+
+    typeSelect.addEventListener('change', () => loadCategories());
+    categorySelect.addEventListener('change', () => loadSubcategories());
+
+    if (typeSelect.value) {
+        loadCategories(selectedCategory);
+    } else {
+        resetSelect(categorySelect, 'Сначала выберите тип');
+        resetSelect(subcategorySelect, 'Сначала выберите категорию');
+    }
+})();
+</script>
+{% endblock %}
